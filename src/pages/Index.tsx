@@ -25,6 +25,7 @@ const Index = () => {
   const [selectedCameraLevel, setSelectedCameraLevel] = useState<CameraLevel | null>(null);
   const [orderSummary, setOrderSummary] = useState<any>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string>('');
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   
   // Get cart quantities for products
   const getCartQuantity = (productId: string) => {
@@ -822,9 +823,22 @@ const Index = () => {
 
                       <div className="space-y-3 pt-4">
                         <Button
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 relative"
+                          disabled={isCheckingOut}
                           onClick={async () => {
                             try {
+                              setIsCheckingOut(true);
+                              
+                              // Function to perform the redirect
+                              const redirectToCheckout = (url: string) => {
+                                // If we're in an iframe, break out of it
+                                if (window.self !== window.top) {
+                                  window.top.location.href = url;
+                                } else {
+                                  window.location.href = url;
+                                }
+                              };
+                              
                               // First try to get the checkout URL from the cart
                               let url = checkoutUrl;
                               
@@ -838,8 +852,7 @@ const Index = () => {
                               
                               // If we have a URL, redirect to it
                               if (url) {
-                                // Force a full page redirect to Shopify checkout
-                                window.location.href = url;
+                                redirectToCheckout(url);
                                 return;
                               }
                               
@@ -852,7 +865,7 @@ const Index = () => {
                                   ? `https://${storeDomain}/cart/${cartId.split('/').pop()}:1/checkout`
                                   : `https://${storeDomain}/checkout`;
                                 
-                                window.location.href = redirectUrl;
+                                redirectToCheckout(redirectUrl);
                               } else {
                                 console.error('Store domain not configured');
                                 // If all else fails, show an error or fallback
@@ -861,10 +874,21 @@ const Index = () => {
                             } catch (error) {
                               console.error('Checkout error:', error);
                               alert('An error occurred while processing your checkout. Please try again.');
+                            } finally {
+                              setIsCheckingOut(false);
                             }
                           }}
                         >
-                          Proceed to Checkout
+                          {isCheckingOut ? (
+                            <>
+                              <span className="opacity-0">Proceeding to Checkout</span>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                              </div>
+                            </>
+                          ) : (
+                            'Proceed to Checkout'
+                          )}
                         </Button>
 
                         <Button
