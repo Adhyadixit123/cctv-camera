@@ -559,7 +559,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-blue-50">
+    <div className="min-h-screen bg-blue-50" style={{ minHeight: '120vh' }}>
       <div className="container mx-auto px-4 py-8">
         {/* Progress Header */}
         <div className="mb-8">
