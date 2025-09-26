@@ -11,6 +11,22 @@ import { useCart } from '@/hooks/useCart';
 import { ShopifyProductService, ShopifyCartService } from '@/services/shopifyService';
 import { ProductCard } from '@/components/ProductCard';
 
+// Define OrderItem type for type safety
+interface OrderItem {
+  lineId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+// Define OrderSummary type
+interface OrderSummary {
+  items: OrderItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+}
+
 interface CheckoutFlowProps {
   steps: CheckoutStep[];
   onComplete: () => void;
@@ -25,8 +41,36 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
   const [selectedCameraLevel, setSelectedCameraLevel] = useState<CameraLevel | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage] = useState(4);
+  const [orderSummary, setOrderSummary] = useState<OrderSummary | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string>('');
+  const [currentStepData, setCurrentStepData] = useState<CheckoutStep | null>(null);
 
   const { shopifyCart, addAddOn, removeAddOn, getOrderSummary, getCheckoutUrl, isLoading, updateProductSelection, loadCart, updateCartItem, removeFromCart } = useCart();
+
+  // Update current step data when step changes
+  useEffect(() => {
+    if (steps && steps.length > 0 && currentStep < steps.length) {
+      setCurrentStepData(steps[currentStep]);
+    }
+  }, [currentStep, steps]);
+
+  // Load order summary when cart changes
+  useEffect(() => {
+    const loadOrderSummary = async () => {
+      if (shopifyCart?.id) {
+        const summary = await getOrderSummary();
+        setOrderSummary(summary);
+        
+        // Get checkout URL if not already available
+        if (!checkoutUrl) {
+          const url = await getCheckoutUrl();
+          setCheckoutUrl(url);
+        }
+      }
+    };
+
+    loadOrderSummary();
+  }, [shopifyCart, getOrderSummary, getCheckoutUrl, checkoutUrl]);
 
   // Refresh cart data when component mounts to sync with Index component
   useEffect(() => {
@@ -254,7 +298,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
   ];
 
   // Get filtered products based on camera type and level
-  const getFilteredProducts = () => {
+  const getFilteredProducts = (selectedCameraType: string, selectedCameraLevel: string) => {
     if (!selectedCameraType || !selectedCameraLevel) return [];
 
     const filterKey = `${selectedCameraType}-${selectedCameraLevel}`;
@@ -265,7 +309,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
   };
 
   // Pagination logic
-  const filteredProducts = getFilteredProducts();
+  const filteredProducts = getFilteredProducts(selectedCameraType || '', selectedCameraLevel || '');
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
   const startIndex = (currentPage - 1) * productsPerPage;
   const endIndex = startIndex + productsPerPage;
@@ -276,22 +320,35 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
     setCurrentPage(1);
   }, [selectedCameraType, selectedCameraLevel]);
 
-  // Load products for current step based on collection ID
+  // Load products for current step based on current step
   useEffect(() => {
     const loadStepProducts = async () => {
-      if (!currentStepData?.collectionId || currentStep >= steps.length - 1) {
-        // For hardcoded camera products, no need to load from Shopify
+      // For hardcoded camera products, no need to load from Shopify
+      if (currentStep >= steps.length - 1) {
         setStepProducts([]);
+        setLoadingProducts(false);
+        return;
+      }
+
+      // If we have hardcoded products for this step, use them
+      if (currentStep === 2) { // Products step
+        const products = getFilteredProducts(selectedCameraType, selectedCameraLevel);
+        setStepProducts(products);
         setLoadingProducts(false);
         return;
       }
 
       setLoadingProducts(true);
       try {
-        console.log('Loading products for collection:', currentStepData.collectionId);
-        const products = await ShopifyProductService.getProductsByCollection(currentStepData.collectionId);
-        setStepProducts(products.slice(0, 4)); // Show up to 4 products per step
-        console.log('Loaded products:', products.length);
+        // For other steps, load from Shopify if needed
+        if (currentStepData?.collectionId) {
+          console.log('Loading products for collection:', currentStepData.collectionId);
+          const products = await ShopifyProductService.getProductsByCollection(currentStepData.collectionId);
+          setStepProducts(products.slice(0, 4)); // Show up to 4 products per step
+          console.log('Loaded products:', products.length);
+        } else {
+          setStepProducts([]);
+        }
       } catch (error) {
         console.error('Error loading step products:', error);
         // Fallback to empty array for hardcoded products
@@ -319,11 +376,16 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
     return false;
   };
 
-  const handleAddOnToggle = (addOnId: string) => {
+  const handleAddOnToggle = async (addOnId: string) => {
     if (isAddOnSelected(addOnId)) {
-      removeAddOn(addOnId);
+      await removeAddOn(addOnId);
     } else {
-      addAddOn(addOnId);
+      await addAddOn(addOnId);
+    }
+    // Refresh the order summary after toggling add-ons
+    if (shopifyCart?.id) {
+      const summary = await getOrderSummary();
+      setOrderSummary(summary);
     }
   };
 
@@ -335,6 +397,11 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
       // Update item quantity
       await updateCartItem(lineId, newQuantity);
     }
+    // Refresh the order summary after quantity change
+    if (shopifyCart?.id) {
+      const summary = await getOrderSummary();
+      setOrderSummary(summary);
+    }
   };
 
   const handleProductAddToCart = async (product: any, variantId: string) => {
@@ -343,7 +410,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
       id: product.id,
       name: product.name,
       description: product.description,
-      price: product.id === '2x-camera' ? 299 : 449,
+      basePrice: product.id === '2x-camera' ? 299 : 449,
       image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400',
       variants: [{ id: variantId, name: 'Standard', value: 'standard', priceModifier: 0 }]
     };
@@ -353,7 +420,11 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
   };
 
   const handleRemoveItem = async (lineId: string) => {
-    await removeFromCart(lineId);
+    if (shopifyCart?.id) {
+      await removeFromCart(lineId);
+      const summary = await getOrderSummary();
+      setOrderSummary(summary);
+    }
   };
 
   const handleIncreaseQuantity = async (lineId: string, currentQuantity: number) => {

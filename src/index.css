@@ -141,35 +141,3 @@ All colors MUST be HSL.
     display: none;  /* Safari and Chrome */
   }
 }
-
-/* Iframe Integration Styles */
-html, body, #root {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible; /* parent page handles scrolling */
-}
-
-.app-container {
-  width: 100%;
-  min-height: 100vh;
-}
-
-/* Ensure proper iframe behavior */
-iframe {
-  border: none;
-  width: 100%;
-  height: 100%;
-}
-
-/* Prevent body scroll when embedded in iframe */
-body.iframe-embedded {
-  overflow: hidden;
-}
-
-/* Ensure full height utilization */
-.iframe-content {
-  min-height: 100vh;
-  width: 100%;
-}
