@@ -25,6 +25,17 @@ const Index = () => {
   const [selectedCameraLevel, setSelectedCameraLevel] = useState<CameraLevel | null>(null);
   const [orderSummary, setOrderSummary] = useState<any>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string>('');
+  
+  // Get cart quantities for products
+  const getCartQuantity = (productId: string) => {
+    if (!shopifyCart?.lines?.edges) return 0;
+    
+    const lineItem = shopifyCart.lines.edges.find(
+      (edge: any) => edge.node.merchandise?.product?.id === productId
+    );
+    
+    return lineItem ? lineItem.node.quantity : 0;
+  };
 
   useEffect(() => {
     // Create the camera checkout flow steps
@@ -367,25 +378,8 @@ const Index = () => {
   };
 
   const handleAddToCart = async (product: Product, variantId: string) => {
-    // For products: Add to cart in background and proceed immediately
-    updateProductSelection(product, variantId).catch(error => {
-      console.error('[Index] Background cart addition failed:', error);
-    });
-
-    // Immediately proceed to next step
+    await updateProductSelection(product, variantId);
     setAppState('addons');
-  };
-
-  // Simple icon chooser by product name keywords
-  const getIconForProduct = (name?: string) => {
-    const n = (name || '').toLowerCase();
-    if (n.includes('mouse')) return '🖱️';
-    if (n.includes('hdmi') || n.includes('cable')) return '🔌';
-    if (n.includes('power') || n.includes('adapter') || n.includes('kit')) return '⚡';
-    if (n.includes('card') || n.includes('storage') || n.includes('sd')) return '💾';
-    if (n.includes('mount') || n.includes('bracket')) return '🔧';
-    if (n.includes('camera')) return '📷';
-    return '🛒';
   };
 
   const handleCartClick = () => {
@@ -436,7 +430,7 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen bg-white">
       {/* Hide Shopify's default header */}
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -456,77 +450,52 @@ const Index = () => {
       {/* Main Content - Only Add-ons Section */}
       <main className="bg-white">
         {appState === 'camera-type' && (
-          <div className="max-w-sm mx-auto p-4">
-            <div className="space-y-3">
-              {cameraTypes.map((cameraType) => {
-                const icons = {
-                  residential: '🏠',
-                  rural: '🌾',
-                  industrial: '🏭'
-                };
-                const descriptions = {
-                  residential: 'Perfect for homes and apartments',
-                  rural: 'Ideal for farms and countryside',
-                  industrial: 'Heavy-duty for commercial use'
-                };
-                const features = {
-                  residential: ['HD Quality', 'Easy Setup', 'Smart Features'],
-                  rural: ['Weatherproof', 'Long Range', 'Solar Ready'],
-                  industrial: ['4K Ultra HD', '24/7 Monitoring', 'Enterprise Grade']
-                };
+          <div className="max-w-2xl mx-auto p-6">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">Premises</h2>
+            <p className="text-sm text-gray-600 mb-6 text-center">What type of location is this?</p>
 
-                return (
-                  <button
-                    key={cameraType.type}
-                    onClick={() => handleCameraTypeSelect(cameraType.type)}
-                    className="w-full group"
-                  >
-                    <div className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:border-blue-500 hover:shadow-lg transition-all duration-300 group-hover:bg-blue-50">
-                      <div className="flex items-center gap-4">
-                        <div className="text-3xl group-hover:scale-110 transition-transform duration-300">
-                          {icons[cameraType.type as keyof typeof icons]}
-                        </div>
-                        <div className="flex-1 text-left">
-                          <h3 className="font-semibold text-gray-900 text-lg mb-1">
-                            {cameraType.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-2">
-                            {descriptions[cameraType.type as keyof typeof descriptions]}
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {features[cameraType.type as keyof typeof features].map((feature, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full"
-                              >
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="text-blue-600 group-hover:translate-x-1 transition-transform duration-300">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                      </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {cameraTypes.map((cameraType) => (
+                <button
+                  key={cameraType.type}
+                  onClick={() => handleCameraTypeSelect(cameraType.type)}
+                  className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100">
+                      {cameraType.type === 'residential' ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                      )}
                     </div>
-                  </button>
-                );
-              })}
+                    <h3 className="text-lg font-medium text-gray-900">{cameraType.title}</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {cameraType.type === 'residential' 
+                        ? 'For homes and personal use' 
+                        : 'For businesses and commercial spaces'}
+                    </p>
+                  </div>
+                  <div className="absolute inset-0 -z-10 bg-gradient-to-br from-blue-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                </button>
+              ))}
             </div>
           </div>
         )}
 
         {appState === 'camera-level' && selectedCameraType && (
-          <div className="max-w-sm mx-auto p-4">
-            <div className="mb-3">
+          <div className="max-w-2xl mx-auto p-6">
+            <div className="mb-4">
               <button
                 onClick={() => {
                   setAppState('camera-type');
                   setSelectedCameraType(null);
                 }}
-                className="text-xs text-gray-600 hover:text-gray-900 flex items-center mb-2"
+                className="text-sm text-gray-600 hover:text-gray-900 flex items-center mb-2"
               >
                 <svg className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -535,65 +504,77 @@ const Index = () => {
               </button>
             </div>
 
-            <div className="space-y-3">
-              {cameraLevels.map((cameraLevel) => {
-                const icons = {
-                  entry: '🌟',
-                  mid: '⭐',
-                  high: '💎'
+            <h2 className="text-3xl font-bold text-gray-900 mb-1 text-center">CCTV Range</h2>
+            <p className="text-sm text-gray-600 mb-6 text-center">View the difference here: Our IP CCTV range explained</p>
+            
+            <div className="space-y-4 max-w-md mx-auto">
+              {cameraLevels.map((cameraLevel, index) => {
+                // Define different icons for different levels
+                const getIcon = () => {
+                  switch (cameraLevel.level) {
+                    case 'entry':
+                      return (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      );
+                    case 'mid':
+                      return (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      );
+                    case 'high':
+                      return (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16a4 4 0 100-8 4 4 0 000 8z" />
+                        </svg>
+                      );
+                    default:
+                      return (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      );
+                  }
                 };
-                const descriptions = {
-                  entry: 'Perfect for getting started with basic security',
-                  mid: 'Balanced performance for everyday protection',
-                  high: 'Premium quality for maximum security coverage'
-                };
-                const features = {
-                  entry: ['720p HD', 'Motion Detection', 'Mobile App'],
-                  mid: ['1080p Full HD', 'Night Vision', 'Cloud Storage'],
-                  high: ['4K Ultra HD', 'AI Analytics', 'Professional Installation']
-                };
-                const colors = {
-                  entry: 'border-green-200 hover:border-green-500 bg-green-50',
-                  mid: 'border-blue-200 hover:border-blue-500 bg-blue-50',
-                  high: 'border-purple-200 hover:border-purple-500 bg-purple-50'
+
+                const getDescription = () => {
+                  switch (cameraLevel.level) {
+                    case 'entry':
+                      return 'Basic features, reliable performance';
+                    case 'mid':
+                      return 'Enhanced features, better quality';
+                    case 'high':
+                      return 'Premium features, top performance';
+                    default:
+                      return 'Professional-grade security solution';
+                  }
                 };
 
                 return (
                   <button
                     key={cameraLevel.level}
                     onClick={() => handleCameraLevelSelect(cameraLevel.level)}
-                    className="w-full group"
+                    className="group relative w-full overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-left"
                   >
-                    <div className={`bg-white border-2 ${colors[cameraLevel.level as keyof typeof colors]} rounded-xl p-4 hover:shadow-lg transition-all duration-300`}>
-                      <div className="flex items-center gap-4">
-                        <div className="text-3xl group-hover:scale-110 transition-transform duration-300">
-                          {icons[cameraLevel.level as keyof typeof icons]}
-                        </div>
-                        <div className="flex-1 text-left">
-                          <h3 className="font-semibold text-gray-900 text-lg mb-1">
-                            {cameraLevel.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-2">
-                            {descriptions[cameraLevel.level as keyof typeof descriptions]}
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {features[cameraLevel.level as keyof typeof features].map((feature, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-block bg-white bg-opacity-80 text-gray-800 text-xs px-2 py-0.5 rounded-full border"
-                              >
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="text-gray-600 group-hover:translate-x-1 transition-transform duration-300">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 mr-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100">
+                          {getIcon()}
                         </div>
                       </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">{cameraLevel.title}</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {getDescription()}
+                        </p>
+                      </div>
                     </div>
+                    <div className="absolute inset-0 -z-10 bg-gradient-to-br from-blue-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
                   </button>
                 );
               })}
@@ -602,7 +583,7 @@ const Index = () => {
         )}
 
         {appState === 'products' && selectedCameraType && selectedCameraLevel && (
-          <div className="max-w-md mx-auto p-4">
+          <div className="max-w-5xl mx-auto p-6">
             <div className="mb-4">
               <button
                 onClick={() => {
@@ -618,70 +599,41 @@ const Index = () => {
               </button>
             </div>
 
-            <h2 className="text-xl font-medium text-gray-900 mb-6 text-center">
-              Select Products from Collection
-            </h2>
-
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6 text-center">
-              <p className="text-blue-800">
-                Selected: <strong>{selectedCameraType}</strong> - <strong>{selectedCameraLevel}</strong> Range
-              </p>
-              <p className="text-sm text-blue-700 mt-2">Browse and select products from the collection below.</p>
-            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Select Products from Collection</h2>
 
             {loadingProducts ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-sm text-gray-600">Loading products...</p>
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading products from collection...</p>
               </div>
             ) : products.length > 0 ? (
-              <div className="space-y-1.5 max-w-sm mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 justify-items-center">
                 {products.map((product) => {
-                  const firstVariantId = (product as any).variants?.[0]?.id;
-                  const firstVariantName = (product as any).variants?.[0]?.name || (product as any).variants?.[0]?.title;
+                  const quantityInCart = getCartQuantity(product.id);
                   return (
-                    <div key={product.id} className="px-2 py-1.5 border rounded flex items-center justify-between hover:bg-gray-50">
-                      <button
-                        type="button"
-                        className="flex items-center gap-1.5 text-left flex-1 min-w-0"
-                        onClick={() => firstVariantId && handleAddToCart(product, firstVariantId)}
-                      >
-                        <span className="text-lg flex-shrink-0">
-                          {getIconForProduct((product as any).name || (product as any).title)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-medium truncate">
-                            {(product as any).name || (product as any).title}
-                          </div>
-                          {firstVariantName && (
-                            <div className="text-xs text-gray-500 truncate">{firstVariantName}</div>
-                          )}
-                        </div>
-                      </button>
-                      <Button
-                        size="sm"
-                        className="h-6 px-1.5 text-xs flex-shrink-0 ml-1"
-                        onClick={() => firstVariantId && handleAddToCart(product, firstVariantId)}
-                        disabled={!firstVariantId}
-                      >
-                        Add
-                      </Button>
+                    <div key={product.id} className="w-full max-w-xl">
+                      <ProductCard
+                        product={product}
+                        onAddToCart={handleAddToCart}
+                        size="lg"
+                        cartQuantity={quantityInCart}
+                      />
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="text-center py-4 text-sm text-gray-600">
+              <div className="text-center py-8 text-gray-600">
                 <p>No products found in this collection.</p>
-                <p className="text-xs mt-1">Please check if the collection exists and has products.</p>
+                <p className="text-sm mt-2">Please check if the collection exists and has products.</p>
               </div>
             )}
           </div>
         )}
 
         {appState === 'addons' && checkoutSteps.length > 0 && (
-          <div className="w-full min-h-screen bg-white overflow-x-hidden">
-            <div className="max-w-sm mx-auto p-3">
+          <div className="w-full h-full overflow-auto bg-white" style={{ minHeight: '135vh' }}>
+            <div className="max-w-5xl mx-auto p-4">
               <style dangerouslySetInnerHTML={{
                 __html: `
                   body { margin: 0; padding: 0; }
@@ -707,52 +659,44 @@ const Index = () => {
                 <p className="text-xs text-gray-500">Products are fetched from your add-ons collection</p>
               </div>
 
-              <div className="max-w-sm mx-auto px-2">
-                {loadingProducts ? (
-                  <div className="text-center py-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                    <p className="text-xs text-gray-600">Loading...</p>
-                  </div>
-                ) : products.length > 0 ? (
-                  <div className="space-y-1">
-                    {products.map((product) => {
-                      const firstVariantId = (product as any).variants?.[0]?.id;
+              {loadingProducts ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading add-on products...</p>
+                </div>
+              ) : products.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {products
+                    .filter(product => {
+                      const quantityInCart = getCartQuantity(product.id);
+                      // Show product if it's not in cart or allows multiple
+                      return quantityInCart === 0 || product.tags?.includes('allow-multiple');
+                    })
+                    .map((product) => {
+                      const quantityInCart = getCartQuantity(product.id);
                       return (
-                        <div key={product.id} className="px-2 py-1.5 border rounded flex items-center justify-between hover:bg-gray-50">
-                          <button
-                            type="button"
-                            className="flex items-center gap-1.5 text-left flex-1 min-w-0"
-                            onClick={() => firstVariantId && handleAddToCart(product, firstVariantId)}
-                          >
-                            <span className="text-lg flex-shrink-0">
-                              {getIconForProduct((product as any).name || (product as any).title)}
-                            </span>
-                            <span className="text-xs font-medium truncate">
-                              {(product as any).name || (product as any).title}
-                            </span>
-                          </button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 px-1.5 text-xs flex-shrink-0 ml-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              firstVariantId && handleAddToCart(product, firstVariantId);
-                            }}
-                            disabled={!firstVariantId}
-                          >
-                            Add
-                          </Button>
+                        <div key={product.id} className="relative">
+                          {quantityInCart > 0 && (
+                            <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center z-10">
+                              {quantityInCart}
+                            </div>
+                          )}
+                          <ProductCard 
+                            product={product} 
+                            onAddToCart={handleAddToCart} 
+                            size="sm" 
+                            cartQuantity={quantityInCart}
+                          />
                         </div>
                       );
                     })}
-                  </div>
-                ) : (
-                  <div className="text-center py-3 text-xs text-gray-500">
-                    No add-ons available.
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-600">
+                  <p>No add-on products found.</p>
+                  <p className="text-sm mt-2">Ensure the collection has published products available to Online Store.</p>
+                </div>
+              )}
 
               <div className="mt-6 text-center border-t border-gray-100 pt-6">
                 <Button

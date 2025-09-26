@@ -11,7 +11,12 @@ export interface ProductVariant {
   id: string;
   name: string;
   value: string;
-  priceModifier: number;
+  // Absolute price for this variant (Shopify variant price)
+  priceAmount: number;
+  // Optional compare-at price for this variant
+  compareAtPriceAmount?: number;
+  // Backwards-compat for older code paths using modifiers
+  priceModifier?: number;
 }
 
 export interface AddOn {

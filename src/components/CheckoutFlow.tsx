@@ -467,11 +467,9 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
       variants: [{ id: variantId, name: 'Standard', value: 'standard', priceModifier: 0 }]
     };
 
-    // For products: Add to cart in background and proceed immediately
+    // Use the cart hook's updateProductSelection method to properly manage cart state
     const beforeStep = currentStep;
-    updateProductSelection(productData, variantId).catch(error => {
-      console.error('[CheckoutFlow] Background cart addition failed:', error);
-    });
+    await updateProductSelection(productData, variantId);
 
     // After successfully adding to cart, navigate to next logical step
     // If we are on the products step, go to Add-ons step; otherwise, go to Order Summary

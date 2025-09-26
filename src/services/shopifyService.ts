@@ -78,7 +78,7 @@ export class ShopifyProductService {
                   publishedAt
                   availableForSale
                   images(first: 1) { edges { node { url altText } } }
-                  variants(first: 10) { edges { node { id title price { amount currencyCode } availableForSale quantityAvailable } } }
+                  variants(first: 10) { edges { node { id title price { amount currencyCode } compareAtPrice { amount currencyCode } availableForSale quantityAvailable } } }
                   priceRange { minVariantPrice { amount currencyCode } }
                 }
               }
@@ -103,7 +103,7 @@ export class ShopifyProductService {
                   publishedAt
                   availableForSale
                   images(first: 1) { edges { node { url altText } } }
-                  variants(first: 10) { edges { node { id title price { amount currencyCode } availableForSale quantityAvailable } } }
+                  variants(first: 10) { edges { node { id title price { amount currencyCode } compareAtPrice { amount currencyCode } availableForSale quantityAvailable } } }
                   priceRange { minVariantPrice { amount currencyCode } }
                 }
               }
@@ -120,7 +120,7 @@ export class ShopifyProductService {
         const allProductsQuery = `
           query GetAllProducts($first: Int!) {
             products(first: $first) {
-              edges { node { id title description handle publishedAt availableForSale images(first:1){edges{node{url altText}}} variants(first:10){edges{node{id title price{amount currencyCode} availableForSale quantityAvailable}}} priceRange{minVariantPrice{amount currencyCode}} } }
+              edges { node { id title description handle publishedAt availableForSale images(first:1){edges{node{url altText}}} variants(first:10){edges{node{id title price{amount currencyCode} compareAtPrice{amount currencyCode} availableForSale quantityAvailable}}} priceRange{minVariantPrice{amount currencyCode}} } }
             }
           }
         `;
@@ -219,19 +219,22 @@ export class ShopifyProductService {
     const basePrice = parseFloat(shopifyProduct.priceRange.minVariantPrice.amount);
     const imageUrl = shopifyProduct.images.edges[0]?.node.url || '';
 
-    // Handle products with no variants
-    const variants = shopifyProduct.variants.edges.length > 0
-      ? shopifyProduct.variants.edges.map((edge: any) => ({
+    // Map variants with absolute pricing (and compare-at if present)
+    const variantEdges = shopifyProduct.variants?.edges || [];
+    const variants = variantEdges.length > 0
+      ? variantEdges.map((edge: any) => ({
           id: edge.node.id,
           name: 'Variant',
           value: edge.node.title,
-          priceModifier: parseFloat(edge.node.price.amount) - basePrice
+          priceAmount: parseFloat(edge.node.price?.amount ?? basePrice),
+          compareAtPriceAmount: edge.node.compareAtPrice?.amount ? parseFloat(edge.node.compareAtPrice.amount) : undefined
         }))
       : [{
-          id: shopifyProduct.id, // Use product ID as fallback if no variants
+          id: shopifyProduct.id,
           name: 'Default',
           value: 'Default',
-          priceModifier: 0
+          priceAmount: basePrice,
+          compareAtPriceAmount: undefined
         }];
 
     return {
