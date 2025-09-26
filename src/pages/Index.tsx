@@ -131,6 +131,39 @@ const Index = () => {
     createCheckoutSteps();
   }, []);
 
+  // Iframe height management
+  useEffect(() => {
+    const sendHeight = () => {
+      const body = document.body;
+      const html = document.documentElement;
+      const height = Math.max(
+        body.scrollHeight, body.offsetHeight,
+        html.clientHeight, html.scrollHeight, html.offsetHeight
+      );
+      window.parent.postMessage({ frameHeight: height }, "*");
+    };
+
+    // Detect if running in iframe and apply appropriate class
+    if (window.self !== window.parent) {
+      document.body.classList.add('iframe-embedded');
+    }
+
+    // Send initial height
+    sendHeight();
+
+    // Update on resize
+    window.addEventListener("resize", sendHeight);
+
+    // Update on DOM changes
+    const observer = new MutationObserver(sendHeight);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      window.removeEventListener("resize", sendHeight);
+      observer.disconnect();
+    };
+  }, [appState]); // Re-run when appState changes to update iframe height
+
   const handleCameraTypeSelect = (cameraType: CameraType) => {
     setSelectedCameraType(cameraType);
     setAppState('camera-level');
@@ -275,20 +308,20 @@ const Index = () => {
   };
 
   return (
-    <div className="w-full h-full bg-white">
+    <div className="w-full h-full bg-white app-container iframe-content">
       {/* Hide Shopify's default header and other elements */}
       <style dangerouslySetInnerHTML={{
         __html: `
           /* Hide Shopify elements */
-          .shopify-section-header, 
-          header[class*="shopify"], 
-          .header-wrapper, 
-          [data-section-type="header"], 
-          .shopify-header, 
-          .site-header, 
-          #shopify-header, 
-          #header, 
-          .announcement-bar, 
+          .shopify-section-header,
+          header[class*="shopify"],
+          .header-wrapper,
+          [data-section-type="header"],
+          .shopify-header,
+          .site-header,
+          #shopify-header,
+          #header,
+          .announcement-bar,
           [role="banner"],
           /* Hide footer elements */
           footer,
@@ -297,7 +330,7 @@ const Index = () => {
           .site-footer {
             display: none !important;
           }
-          
+
           /* Ensure full height for the app */
           html, body, #root {
             height: 100%;
@@ -305,18 +338,24 @@ const Index = () => {
             padding: 0;
             overflow-x: hidden;
           }
-          
+
           /* Make sure the app takes full width and height */
           body {
             min-height: 100vh;
             width: 100%;
           }
-          
+
           /* Ensure iframe content is scrollable */
           iframe {
             width: 100%;
             height: 100%;
             border: none;
+          }
+
+          /* App container styling for iframe */
+          .app-container {
+            min-height: 100vh;
+            width: 100%;
           }
         `
       }} />
