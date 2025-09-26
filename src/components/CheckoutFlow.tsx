@@ -8,7 +8,7 @@ import { CheckCircle, Plus, ArrowLeft, ArrowRight, Star, ExternalLink, ShoppingB
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckoutStep, AddOn, CameraType, CameraLevel } from '@/types/checkout';
 import { useCart } from '@/hooks/useCart';
-import { ShopifyProductService, ShopifyCartService } from '@/services/shopifyService';
+import { ShopifyProductService } from '@/services/shopifyService';
 import { ProductCard } from '@/components/ProductCard';
 
 // Define OrderItem type for type safety
@@ -45,7 +45,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
   const [checkoutUrl, setCheckoutUrl] = useState<string>('');
   const [currentStepData, setCurrentStepData] = useState<CheckoutStep | null>(null);
 
-  const { shopifyCart, addAddOn, removeAddOn, getOrderSummary, getCheckoutUrl, isLoading, updateProductSelection, loadCart, updateCartItem, removeFromCart } = useCart();
+  const { shopifyCart, addAddOn, removeAddOn, getOrderSummary, getCheckoutUrl, isLoading, updateProductSelection, loadCart, updateCartItem, removeFromCart, addVariantToCart } = useCart();
 
   // Update current step data when step changes
   useEffect(() => {
@@ -71,6 +71,23 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
 
     loadOrderSummary();
   }, [shopifyCart, getOrderSummary, getCheckoutUrl, checkoutUrl]);
+
+  // Helper: add first available variant from a Shopify collection handle
+  const addFromCollectionHandle = async (handle: string, quantity: number = 1) => {
+    console.log('[CheckoutFlow] Adding from collection handle:', handle, 'qty:', quantity);
+    const variantId = await ShopifyProductService.getFirstVariantIdFromCollectionHandle(handle);
+    console.log('[CheckoutFlow] Resolved variantId:', variantId);
+    if (!variantId) {
+      console.error('No variant found for collection handle:', handle);
+      alert(`No available product found in ${handle.replace('-', ' ')} collection.`);
+      return false;
+    }
+    const ok = await addVariantToCart(variantId, quantity);
+    if (!ok) {
+      alert('Failed to add item to cart.');
+    }
+    return ok;
+  };
 
   // Refresh cart data when component mounts to sync with Index component
   useEffect(() => {
@@ -338,6 +355,51 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
         return;
       }
 
+      // Add-ons step: last step before order summary
+      if (currentStep === steps.length - 2) {
+        setLoadingProducts(true);
+        try {
+          console.log('[CheckoutFlow] Loading add-on products from Shopify');
+          // Prefer explicit collection ID provided by the user first
+          const addOnCollectionId = 'gid://shopify/Collection/672209174854';
+          const possibleAddOnHandles = ['add-extras', 'add-ons', 'addons', 'extras', 'extra', 'accessories', 'add'];
+          let addOnProducts: any[] = [];
+          // Try by ID first
+          try {
+            console.log('[CheckoutFlow] Trying add-on collection ID:', addOnCollectionId);
+            const byId = await ShopifyProductService.getProductsByCollection(addOnCollectionId);
+            if (byId && byId.length > 0) {
+              addOnProducts = byId;
+              console.log(`[CheckoutFlow] Loaded ${byId.length} add-on products using ID`);
+            }
+          } catch (err) {
+            console.warn('[CheckoutFlow] Add-on ID lookup failed:', err);
+          }
+
+          // If ID did not return anything, try common handles
+          for (const h of possibleAddOnHandles) {
+            try {
+              console.log('[CheckoutFlow] Trying add-on collection handle:', h);
+              const products = await ShopifyProductService.getProductsByCollection(h);
+              if (products && products.length > 0) {
+                addOnProducts = products;
+                console.log(`[CheckoutFlow] Loaded ${products.length} add-on products using handle: ${h}`);
+                break;
+              }
+            } catch (err) {
+              console.warn('[CheckoutFlow] Add-on handle failed:', h, err);
+            }
+          }
+          setStepProducts(addOnProducts);
+        } catch (error) {
+          console.error('[CheckoutFlow] Error loading add-on products:', error);
+          setStepProducts([]);
+        } finally {
+          setLoadingProducts(false);
+        }
+        return;
+      }
+
       setLoadingProducts(true);
       try {
         // For other steps, load from Shopify if needed
@@ -376,18 +438,8 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
     return false;
   };
 
-  const handleAddOnToggle = async (addOnId: string) => {
-    if (isAddOnSelected(addOnId)) {
-      await removeAddOn(addOnId);
-    } else {
-      await addAddOn(addOnId);
-    }
-    // Refresh the order summary after toggling add-ons
-    if (shopifyCart?.id) {
-      const summary = await getOrderSummary();
-      setOrderSummary(summary);
-    }
-  };
+  // Removed toggle handler for dummy extras; add-ons are loaded automatically into stepProducts
+  const handleAddOnToggle = undefined as unknown as (addOnId: string) => Promise<void>;
 
   const handleQuantityChange = async (lineId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
@@ -415,8 +467,24 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
       variants: [{ id: variantId, name: 'Standard', value: 'standard', priceModifier: 0 }]
     };
 
-    // Use the cart hook's updateProductSelection method to properly manage cart state
-    await updateProductSelection(productData, variantId);
+    // For products: Add to cart in background and proceed immediately
+    const beforeStep = currentStep;
+    updateProductSelection(productData, variantId).catch(error => {
+      console.error('[CheckoutFlow] Background cart addition failed:', error);
+    });
+
+    // After successfully adding to cart, navigate to next logical step
+    // If we are on the products step, go to Add-ons step; otherwise, go to Order Summary
+    try {
+      // Small delay to ensure cart updates propagate
+      await new Promise(resolve => setTimeout(resolve, 200));
+    } catch {}
+
+    if (beforeStep < steps.length - 2) {
+      setCurrentStep(beforeStep + 1);
+    } else {
+      setCurrentStep(steps.length - 1);
+    }
   };
 
   const handleRemoveItem = async (lineId: string) => {
@@ -527,36 +595,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
     }
   ];
 
-  const extras = [
-    {
-      id: 'installation',
-      name: 'Professional Installation',
-      description: 'Expert installation and setup of your camera system',
-      price: 150,
-      category: 'service'
-    },
-    {
-      id: 'monitoring',
-      name: '24/7 Monitoring Service',
-      description: 'Professional monitoring service with immediate response',
-      price: 29,
-      category: 'service'
-    },
-    {
-      id: 'extended-warranty',
-      name: 'Extended Warranty',
-      description: '3-year extended warranty coverage',
-      price: 99,
-      category: 'warranty'
-    },
-    {
-      id: 'smart-hub',
-      name: 'Smart Home Hub',
-      description: 'Central hub for all your smart devices',
-      price: 199,
-      category: 'accessory'
-    }
-  ];
+  // Removed local dummy extras. Add-ons are now fetched from Shopify and shown via stepProducts.
 
   return (
     <div className="min-h-screen bg-blue-50" style={{ minHeight: '135vh' }}>
@@ -766,7 +805,83 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
                             className={`cursor-pointer transition-all hover:shadow-md ${
                               selectedCameraLevel === cameraLevel.level ? 'ring-2 ring-primary bg-primary/5' : ''
                             }`}
-                            onClick={() => setSelectedCameraLevel(cameraLevel.level)}
+                            onClick={async () => {
+                              console.log('[CheckoutFlow] Level selected:', cameraLevel.level);
+                              setSelectedCameraLevel(cameraLevel.level);
+                              setLoadingProducts(true); // Set loading state
+
+                              // Load products from Shopify collections based on level selection
+                              try {
+                                // First, get all collections to find the correct handles
+                                console.log('[CheckoutFlow] Fetching all collections to find correct handles...');
+                                const collections = await ShopifyProductService.getCollections();
+
+                                // Map level to collection based on title similarity
+                                const levelCollectionMap = {
+                                  entry: collections.find(c =>
+                                    c.title.toLowerCase().includes('entry') ||
+                                    c.title.toLowerCase().includes('basic') ||
+                                    c.title.toLowerCase().includes('level') && c.title.toLowerCase().includes('1')
+                                  ),
+                                  mid: collections.find(c =>
+                                    c.title.toLowerCase().includes('mid') ||
+                                    c.title.toLowerCase().includes('standard') ||
+                                    c.title.toLowerCase().includes('range') && c.title.toLowerCase().includes('2')
+                                  ),
+                                  high: collections.find(c =>
+                                    c.title.toLowerCase().includes('high') ||
+                                    c.title.toLowerCase().includes('premium') ||
+                                    c.title.toLowerCase().includes('end') ||
+                                    c.title.toLowerCase().includes('range') && c.title.toLowerCase().includes('3')
+                                  )
+                                };
+
+                                const targetCollection = levelCollectionMap[cameraLevel.level];
+                                console.log(`[CheckoutFlow] Looking for ${cameraLevel.level} level collection:`, targetCollection);
+
+                                if (targetCollection) {
+                                  console.log(`[CheckoutFlow] Found collection: ${targetCollection.title} (handle: ${targetCollection.handle})`);
+                                  const products = await ShopifyProductService.getProductsByCollection(targetCollection.handle);
+
+                                  if (products.length > 0) {
+                                    setStepProducts(products);
+                                    console.log(`[CheckoutFlow] ✅ Successfully loaded ${products.length} products from ${targetCollection.title}`);
+                                  } else {
+                                    console.log(`[CheckoutFlow] ⚠️ Collection ${targetCollection.title} has no products, trying fallback handles...`);
+
+                                    // Fallback to hardcoded handles if collection exists but has no products
+                                    const fallbackHandles = {
+                                      entry: ['entry-level', 'entrylevel', 'entry', 'basic'],
+                                      mid: ['mid-range', 'midrange', 'mid', 'standard'],
+                                      high: ['high-end', 'highend', 'high', 'premium']
+                                    };
+
+                                    for (const handle of fallbackHandles[cameraLevel.level] || []) {
+                                      try {
+                                        console.log(`[CheckoutFlow] Trying fallback handle: ${handle}`);
+                                        const fallbackProducts = await ShopifyProductService.getProductsByCollection(handle);
+                                        if (fallbackProducts.length > 0) {
+                                          setStepProducts(fallbackProducts);
+                                          console.log(`[CheckoutFlow] ✅ Found ${fallbackProducts.length} products using fallback handle: ${handle}`);
+                                          break;
+                                        }
+                                      } catch (e) {
+                                        console.log(`[CheckoutFlow] Fallback handle ${handle} failed:`, e.message);
+                                      }
+                                    }
+                                  }
+                                } else {
+                                  console.error(`[CheckoutFlow] ❌ No collection found for level: ${cameraLevel.level}`);
+                                  setStepProducts([]);
+                                  alert(`No collection found for ${cameraLevel.level} level. Please check your Shopify collections.`);
+                                }
+                              } catch (error) {
+                                console.error('[CheckoutFlow] Error loading collection products:', error);
+                                setStepProducts([]);
+                              } finally {
+                                setLoadingProducts(false); // Always clear loading state
+                              }
+                            }}
                           >
                             <CardContent className="p-6 text-center">
                               <h4 className="font-semibold text-lg mb-2">{cameraLevel.title}</h4>
@@ -794,14 +909,15 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
                   )}
 
                   {currentStep === 2 && (
-                    // Step 3: Camera Selection from Collection
+                    // Step 3: Display products from Shopify collection
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Choose Your Camera Package</h3>
+                      <h3 className="text-lg font-semibold">Choose Your Products</h3>
                       {selectedCameraType && selectedCameraLevel ? (
                         <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
                           <p className="text-blue-800">
                             Selected: <strong>{selectedCameraType}</strong> - <strong>{selectedCameraLevel}</strong> Range
                           </p>
+                          <p className="text-sm text-blue-700 mt-2">Browse and select products from the collection below.</p>
                         </div>
                       ) : (
                         <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-4">
@@ -809,158 +925,55 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* 2x Camera Package */}
-                        <Card className="p-6">
-                          <CardContent className="p-0">
-                            <div className="text-center mb-4">
-                              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <span className="text-2xl">📹</span>
-                              </div>
-                              <h4 className="font-semibold text-lg mb-2">2x Camera Package</h4>
-                              <p className="text-gray-600 text-sm mb-4">Perfect for small properties</p>
-                              <div className="text-2xl font-bold text-blue-600 mb-4">$299</div>
-                            </div>
-
-                            <div className="space-y-3">
-                              <div>
-                                <label className="text-sm font-medium text-gray-700">Quantity</label>
-                                <div className="flex items-center justify-center mt-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleQuantityChange('2x-camera', 1)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="px-4 py-2 bg-gray-100 rounded text-sm font-medium min-w-[3rem] text-center">
-                                    1
-                                  </span>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleQuantityChange('2x-camera', 2)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-
-                              <Button
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                                onClick={() => handleProductAddToCart({
-                                  id: '2x-camera',
-                                  name: '2x Camera Package',
-                                  description: 'Complete 2-camera security system'
-                                }, '2x-variant')}
-                              >
-                                Add to Cart - $299
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-
-                        {/* 3x Camera Package */}
-                        <Card className="p-6">
-                          <CardContent className="p-0">
-                            <div className="text-center mb-4">
-                              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <span className="text-2xl">📹📹📹</span>
-                              </div>
-                              <h4 className="font-semibold text-lg mb-2">3x Camera Package</h4>
-                              <p className="text-gray-600 text-sm mb-4">Ideal for medium properties</p>
-                              <div className="text-2xl font-bold text-blue-600 mb-4">$449</div>
-                            </div>
-
-                            <div className="space-y-3">
-                              <div>
-                                <label className="text-sm font-medium text-gray-700">Quantity</label>
-                                <div className="flex items-center justify-center mt-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleQuantityChange('3x-camera', 1)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="px-4 py-2 bg-gray-100 rounded text-sm font-medium min-w-[3rem] text-center">
-                                    1
-                                  </span>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleQuantityChange('3x-camera', 2)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-
-                              <Button
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                                onClick={() => handleProductAddToCart({
-                                  id: '3x-camera',
-                                  name: '3x Camera Package',
-                                  description: 'Complete 3-camera security system'
-                                }, '3x-variant')}
-                              >
-                                Add to Cart - $449
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h5 className="font-semibold mb-2">Package Includes:</h5>
-                        <ul className="text-sm text-gray-600 space-y-1">
-                          <li>• Professional-grade CCTV cameras</li>
-                          <li>• Weather-resistant housing</li>
-                          <li>• Night vision capability</li>
-                          <li>• Motion detection</li>
-                          <li>• Mobile app access</li>
-                          <li>• Professional installation guide</li>
-                        </ul>
-                      </div>
+                      {loadingProducts ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                          <p className="text-gray-600">Loading products from collection...</p>
+                        </div>
+                      ) : stepProducts.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {stepProducts.map((product) => (
+                            <ProductCard
+                              key={product.id}
+                              product={product}
+                              onAddToCart={handleProductAddToCart}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-600">
+                          <p>No products found in this collection.</p>
+                          <p className="text-sm mt-2">Please check if the collection exists and has products.</p>
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {currentStep === 3 && (
-                    // Step 4: Extras & Accessories
+                    // Step 4: Extras & Accessories (fetched from Shopify)
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold">Add Extras & Accessories</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {extras.map((extra) => (
-                          <Card
-                            key={extra.id}
-                            className="cursor-pointer transition-all hover:shadow-md"
-                            onClick={() => handleAddOnToggle(extra.id)}
-                          >
-                            <CardContent className="p-6">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 space-y-2">
-                                  <h4 className="font-semibold">{extra.name}</h4>
-                                  <p className="text-sm text-muted-foreground">{extra.description}</p>
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-bold text-lg">${extra.price}</span>
-                                    <div className="flex items-center gap-2">
-                                      {isAddOnSelected(extra.id) ? (
-                                        <CheckCircle className="w-5 h-5 text-primary" />
-                                      ) : (
-                                        <Plus className="w-5 h-5 text-muted-foreground" />
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
+                      {loadingProducts ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                          <p className="text-gray-600">Loading add-on products...</p>
+                        </div>
+                      ) : stepProducts.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {stepProducts.map((product) => (
+                            <ProductCard
+                              key={product.id}
+                              product={product}
+                              onAddToCart={handleProductAddToCart}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-600">
+                          <p>No add-on products found.</p>
+                          <p className="text-sm mt-2">Please ensure your add-on collection has published products.</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Product, AddOn } from '@/types/checkout';
-import { ShopifyCartService } from '@/services/shopifyService';
+import { ShopifyProductService } from '@/services/shopifyService';
 
 export function useCart() {
   const [cartId, setCartId] = useState<string | null>(() => {
@@ -43,7 +43,7 @@ export function useCart() {
 
   const loadCart = useCallback(async (id: string) => {
     try {
-      const cart = await ShopifyCartService.getCart(id);
+      const cart = await ShopifyProductService.getCart(id);
       if (cart) {
         setShopifyCart(cart);
         saveCartData(id, cart);
@@ -75,7 +75,7 @@ export function useCart() {
       // Create or update cart with the selected product
       if (cartId) {
         console.log('Adding to existing cart:', cartId);
-        const success = await ShopifyCartService.addToCart(cartId, actualVariantId, 1);
+        const success = await ShopifyProductService.addToCart(cartId, actualVariantId, 1);
         if (success) {
           console.log('Product added successfully, refreshing cart data...');
           // Add a small delay to ensure the cart is updated on Shopify's side
@@ -87,7 +87,7 @@ export function useCart() {
         }
       } else {
         console.log('Creating new cart...');
-        const newCartId = await ShopifyCartService.createCart(actualVariantId, 1);
+        const newCartId = await ShopifyProductService.createCart(actualVariantId, 1);
         if (newCartId) {
           console.log('New cart created:', newCartId);
           setCartId(newCartId);
@@ -106,6 +106,42 @@ export function useCart() {
       setIsLoading(false);
     }
   }, [cartId, loadCart, saveCartData]);
+
+  const addVariantToCart = useCallback(async (variantId: string, quantity: number = 1) => {
+    if (!variantId) return false;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (cartId) {
+        const success = await ShopifyProductService.addToCart(cartId, variantId, quantity);
+        if (success) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await loadCart(cartId);
+          return true;
+        }
+        setError('Failed to add item to cart');
+        return false;
+      } else {
+        const newCartId = await ShopifyProductService.createCart(variantId, quantity);
+        if (newCartId) {
+          setCartId(newCartId);
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await loadCart(newCartId);
+          return true;
+        }
+        setError('Failed to create cart');
+        return false;
+      }
+    } catch (error: any) {
+      console.error('Error adding variant to cart:', error);
+      setError(error.message || 'Error adding item to cart');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cartId, loadCart]);
 
   const addAddOn = useCallback(async (addOnId: string) => {
     // For now, we'll handle add-ons locally since Shopify doesn't have add-on concept
@@ -130,7 +166,7 @@ export function useCart() {
     try {
       console.log('Updating cart item - cartId:', cartId, 'lineId:', lineId, 'quantity:', quantity);
 
-      const success = await ShopifyCartService.updateCartItem(cartId, lineId, quantity);
+      const success = await ShopifyProductService.updateCartItem(cartId, lineId, quantity);
       if (success) {
         console.log('Cart item updated successfully, refreshing cart data...');
         // Add a small delay to ensure the cart is updated on Shopify's side
@@ -163,7 +199,7 @@ export function useCart() {
     try {
       console.log('Removing from cart - cartId:', cartId, 'lineId:', lineId);
 
-      const success = await ShopifyCartService.removeFromCart(cartId, lineId);
+      const success = await ShopifyProductService.removeFromCart(cartId, lineId);
       if (success) {
         console.log('Cart item removed successfully, refreshing cart data...');
         // Add a small delay to ensure the cart is updated on Shopify's side
@@ -222,6 +258,7 @@ export function useCart() {
     shopifyCart,
     selectedProduct,
     updateProductSelection,
+    addVariantToCart,
     addAddOn,
     removeAddOn,
     updateCartItem,

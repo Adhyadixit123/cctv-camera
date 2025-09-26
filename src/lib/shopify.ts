@@ -1,6 +1,10 @@
 import { createStorefrontApiClient } from '@shopify/storefront-api-client';
 
-const storeDomain = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN;
+let storeDomain = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN as string;
+// Sanitize: storefront client expects the host only, not protocol
+if (storeDomain?.startsWith('http://')) storeDomain = storeDomain.replace(/^http:\/\//, '');
+if (storeDomain?.startsWith('https://')) storeDomain = storeDomain.replace(/^https:\/\//, '');
+if (storeDomain?.endsWith('/')) storeDomain = storeDomain.replace(/\/+$/, '');
 const accessToken = import.meta.env.VITE_SHOPIFY_ACCESS_TOKEN;
 
 if (!storeDomain || !accessToken) {

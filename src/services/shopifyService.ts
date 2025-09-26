@@ -56,80 +56,55 @@ export class ShopifyProductService {
     }
   }
 
-  static async getProductsByCollection(collectionId?: string): Promise<Product[]> {
+  static async getProductsByCollection(handleOrId?: string): Promise<Product[]> {
     try {
-      const query = `
-        query GetProductsByCollection($first: Int!, $collectionId: ID) {
+      console.log('[ShopifyProductService] getProductsByCollection called with:', handleOrId);
+
+      const usingId = !!handleOrId && handleOrId.startsWith('gid://shopify/Collection/');
+
+      const queryById = `
+        query GetProductsByCollectionId($first: Int!, $collectionId: ID!) {
           collection(id: $collectionId) {
+            id
+            title
+            handle
             products(first: $first) {
               edges {
                 node {
                   id
                   title
                   description
-                  images(first: 1) {
-                    edges {
-                      node {
-                        url
-                        altText
-                      }
-                    }
-                  }
-                  variants(first: 10) {
-                    edges {
-                      node {
-                        id
-                        title
-                        price {
-                          amount
-                          currencyCode
-                        }
-                        availableForSale
-                      }
-                    }
-                  }
-                  priceRange {
-                    minVariantPrice {
-                      amount
-                      currencyCode
-                    }
-                  }
+                  handle
+                  publishedAt
+                  availableForSale
+                  images(first: 1) { edges { node { url altText } } }
+                  variants(first: 10) { edges { node { id title price { amount currencyCode } availableForSale quantityAvailable } } }
+                  priceRange { minVariantPrice { amount currencyCode } }
                 }
               }
             }
           }
-          products(first: $first) {
-            edges {
-              node {
-                id
-                title
-                description
-                images(first: 1) {
-                  edges {
-                    node {
-                      url
-                      altText
-                    }
-                  }
-                }
-                variants(first: 10) {
-                  edges {
-                    node {
-                      id
-                      title
-                      price {
-                        amount
-                        currencyCode
-                      }
-                      availableForSale
-                    }
-                  }
-                }
-                priceRange {
-                  minVariantPrice {
-                    amount
-                    currencyCode
-                  }
+        }
+      `;
+
+      const queryByHandle = `
+        query GetProductsByCollectionHandle($first: Int!, $handle: String!) {
+          collectionByHandle(handle: $handle) {
+            id
+            title
+            handle
+            products(first: $first) {
+              edges {
+                node {
+                  id
+                  title
+                  description
+                  handle
+                  publishedAt
+                  availableForSale
+                  images(first: 1) { edges { node { url altText } } }
+                  variants(first: 10) { edges { node { id title price { amount currencyCode } availableForSale quantityAvailable } } }
+                  priceRange { minVariantPrice { amount currencyCode } }
                 }
               }
             }
@@ -138,22 +113,61 @@ export class ShopifyProductService {
       `;
 
       const variables: any = { first: 20 };
-      if (collectionId) {
-        variables.collectionId = collectionId;
+      let response: any;
+
+      if (!handleOrId) {
+        // Fallback to all products if no identifier provided
+        const allProductsQuery = `
+          query GetAllProducts($first: Int!) {
+            products(first: $first) {
+              edges { node { id title description handle publishedAt availableForSale images(first:1){edges{node{url altText}}} variants(first:10){edges{node{id title price{amount currencyCode} availableForSale quantityAvailable}}} priceRange{minVariantPrice{amount currencyCode}} } }
+            }
+          }
+        `;
+        response = await shopifyClient.request(allProductsQuery, { variables });
+        console.log('[ShopifyProductService] GraphQL response (all products):', response);
+        const products = response.data?.products?.edges || [];
+        const transformed = products.map((edge: any) => this.transformShopifyProduct(edge.node));
+        console.log(`[ShopifyProductService] Returning ${transformed.length} transformed products`);
+        return transformed;
       }
 
-      const response = await shopifyClient.request(query, { variables });
-
-      let products = [];
-      if (collectionId && response.data?.collection?.products?.edges) {
-        products = response.data.collection.products.edges;
-      } else if (response.data?.products?.edges) {
-        products = response.data.products.edges;
+      if (usingId) {
+        variables.collectionId = handleOrId;
+        console.log('[ShopifyProductService] Using collection ID:', handleOrId);
+        response = await shopifyClient.request(queryById, { variables });
+      } else {
+        variables.handle = handleOrId;
+        console.log('[ShopifyProductService] Using collection handle:', handleOrId);
+        response = await shopifyClient.request(queryByHandle, { variables });
       }
 
-      return products.map((edge: any) =>
-        this.transformShopifyProduct(edge.node)
-      );
+      console.log('[ShopifyProductService] GraphQL response received:', response);
+      if ((response as any)?.errors) {
+        try {
+          const errs = (response as any).errors;
+          console.error('[ShopifyProductService] GraphQL errors:', errs);
+          const messages = Array.isArray(errs) ? errs.map((e: any) => e.message).join(' | ') : String(errs);
+          console.error('[ShopifyProductService] GraphQL error messages:', messages);
+        } catch (e) {
+          console.error('[ShopifyProductService] Failed to parse GraphQL errors');
+        }
+      }
+
+      let productEdges: any[] = [];
+      if (usingId) {
+        productEdges = response.data?.collection?.products?.edges || [];
+      } else {
+        productEdges = response.data?.collectionByHandle?.products?.edges || [];
+      }
+
+      if (productEdges.length === 0) {
+        console.log('[ShopifyProductService] No products found in response');
+      }
+
+      const transformedProducts = productEdges.map((edge: any) => this.transformShopifyProduct(edge.node));
+      console.log(`[ShopifyProductService] Returning ${transformedProducts.length} transformed products`);
+      return transformedProducts;
     } catch (error) {
       console.error('Error fetching products by collection:', error);
       return [];
@@ -162,6 +176,7 @@ export class ShopifyProductService {
 
   static async getCollections(): Promise<any[]> {
     try {
+      console.log('[ShopifyProductService] getCollections called');
       const query = `
         query GetCollections {
           collections(first: 10) {
@@ -170,6 +185,7 @@ export class ShopifyProductService {
                 id
                 title
                 description
+                handle
                 image {
                   url
                   altText
@@ -180,13 +196,19 @@ export class ShopifyProductService {
         }
       `;
 
+      console.log('[ShopifyProductService] Making collections request...');
       const response = await shopifyClient.request(query);
+      console.log('[ShopifyProductService] Collections response:', response);
 
       if (!response.data?.collections?.edges) {
+        console.log('[ShopifyProductService] No collections found in response');
         return [];
       }
 
-      return response.data.collections.edges.map((edge: any) => edge.node);
+      const collections = response.data.collections.edges.map((edge: any) => edge.node);
+      console.log(`[ShopifyProductService] Returning ${collections.length} collections`);
+      console.log('Collections found:', collections.map(c => ({ id: c.id, title: c.title, handle: c.handle })));
+      return collections;
     } catch (error) {
       console.error('Error fetching collections:', error);
       return [];
@@ -221,9 +243,135 @@ export class ShopifyProductService {
       variants
     };
   }
-}
 
-export class ShopifyCartService {
+  static async getCollectionByHandle(handle: string): Promise<any | null> {
+    try {
+      console.log('[ShopifyProductService] Fetching collection by handle:', handle);
+      const query = `
+        query GetCollectionByHandle($handle: String!) {
+          collectionByHandle(handle: $handle) {
+            id
+            title
+            description
+          }
+        }
+      `;
+
+      const response = await shopifyClient.request(query, {
+        variables: { handle }
+      });
+      console.log('[ShopifyProductService] getCollectionByHandle response:', response);
+      return response.data?.collectionByHandle || null;
+    } catch (error) {
+      console.error('Error fetching collection by handle:', handle, error);
+      return null;
+    }
+  }
+
+  static async getFirstVariantIdFromCollectionHandle(handle: string): Promise<string | null> {
+    try {
+      console.log('[ShopifyProductService] Fetching first variant from collection handle:', handle);
+      const query = `
+        query GetFirstVariantFromCollection($handle: String!) {
+          collectionByHandle(handle: $handle) {
+            products(first: 10) {
+              edges {
+                node {
+                  variants(first: 10) {
+                    edges {
+                      node {
+                        id
+                        availableForSale
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const response = await shopifyClient.request(query, {
+        variables: { handle }
+      });
+      console.log('[ShopifyProductService] getFirstVariantIdFromCollectionHandle response:', response);
+
+      const products = response.data?.collectionByHandle?.products?.edges || [];
+      for (const edge of products) {
+        const variants = edge?.node?.variants?.edges || [];
+        // Prefer the first available variant
+        const available = variants.find((v: any) => v?.node?.availableForSale);
+        if (available?.node?.id) return available.node.id;
+        if (variants[0]?.node?.id) return variants[0].node.id;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error fetching first variant from collection handle:', handle, error);
+      return null;
+    }
+  }
+
+  static async testSpecificProduct(productId: string): Promise<any> {
+    try {
+      console.log('[ShopifyProductService] Testing specific product:', productId);
+      const query = `
+        query GetProduct($id: ID!) {
+          product(id: $id) {
+            id
+            title
+            handle
+            description
+            publishedAt
+            availableForSale
+            collections(first: 10) {
+              edges {
+                node {
+                  id
+                  title
+                  handle
+                }
+              }
+            }
+            images(first: 1) {
+              edges {
+                node {
+                  url
+                  altText
+                }
+              }
+            }
+            variants(first: 10) {
+              edges {
+                node {
+                  id
+                  title
+                  price {
+                    amount
+                    currencyCode
+                  }
+                  availableForSale
+                  quantityAvailable
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const response = await shopifyClient.request(query, {
+        variables: { id: `gid://shopify/Product/${productId}` }
+      });
+
+      console.log('[ShopifyProductService] Specific product response:', response);
+      return response.data?.product || null;
+    } catch (error) {
+      console.error('Error fetching specific product:', productId, error);
+      return null;
+    }
+  }
+
   static async createCart(productVariantId: string, quantity: number = 1): Promise<string | null> {
     try {
       console.log('Creating cart with productVariantId:', productVariantId, 'quantity:', quantity);
