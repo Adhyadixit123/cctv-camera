@@ -670,7 +670,8 @@ const Index = () => {
                     .filter(product => {
                       const quantityInCart = getCartQuantity(product.id);
                       // Show product if it's not in cart or allows multiple
-                      return quantityInCart === 0 || product.tags?.includes('allow-multiple');
+                      const productTags = (product as any).tags || [];
+                      return quantityInCart === 0 || productTags.includes('allow-multiple');
                     })
                     .map((product) => {
                       const quantityInCart = getCartQuantity(product.id);
@@ -823,20 +824,43 @@ const Index = () => {
                         <Button
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
                           onClick={async () => {
-                            // Prefer Shopify checkoutUrl if we have it
-                            let url = checkoutUrl;
-                            if (!url) {
-                              url = await getCheckoutUrl();
-                            }
-                            if (url) {
-                              window.location.href = url;
-                            } else {
+                            try {
+                              // First try to get the checkout URL from the cart
+                              let url = checkoutUrl;
+                              
+                              // If we don't have a checkout URL, try to get one
+                              if (!url) {
+                                url = await getCheckoutUrl();
+                                if (url) {
+                                  setCheckoutUrl(url);
+                                }
+                              }
+                              
+                              // If we have a URL, redirect to it
+                              if (url) {
+                                // Force a full page redirect to Shopify checkout
+                                window.location.href = url;
+                                return;
+                              }
+                              
+                              // Fallback to store domain if available
                               const storeDomain = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN;
                               if (storeDomain) {
-                                window.location.href = `https://${storeDomain}/checkout`;
+                                // Try to get the cart ID from the current cart
+                                const cartId = shopifyCart?.id;
+                                const redirectUrl = cartId 
+                                  ? `https://${storeDomain}/cart/${cartId.split('/').pop()}:1/checkout`
+                                  : `https://${storeDomain}/checkout`;
+                                
+                                window.location.href = redirectUrl;
                               } else {
-                                setAppState('complete');
+                                console.error('Store domain not configured');
+                                // If all else fails, show an error or fallback
+                                alert('Unable to proceed to checkout. Store domain not configured.');
                               }
+                            } catch (error) {
+                              console.error('Checkout error:', error);
+                              alert('An error occurred while processing your checkout. Please try again.');
                             }
                           }}
                         >
