@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -25,7 +25,24 @@ const Index = () => {
   const [selectedCameraLevel, setSelectedCameraLevel] = useState<CameraLevel | null>(null);
   const [orderSummary, setOrderSummary] = useState<any>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string>('');
+  // Cache the products shown in Step 3 so we can restore them when returning from Step 4
+  const [savedProductsBeforeAddons, setSavedProductsBeforeAddons] = useState<Product[] | null>(null);
+  const prevAppStateRef = useRef<AppState>(appState);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+  // Track appState transitions to cache/restore products between Step 3 and Step 4
+  useEffect(() => {
+    const prev = prevAppStateRef.current;
+    // When entering addons from products, cache the current products (Step 3 collection)
+    if (appState === 'addons' && prev === 'products' && products?.length) {
+      setSavedProductsBeforeAddons(products);
+    }
+    // When returning to products from addons, restore previously cached products
+    if (appState === 'products' && prev === 'addons' && savedProductsBeforeAddons) {
+      setProducts(savedProductsBeforeAddons);
+    }
+    prevAppStateRef.current = appState;
+  }, [appState, products, savedProductsBeforeAddons]);
   
   // Get cart quantities for products
   const getCartQuantity = (productId: string) => {
@@ -425,9 +442,9 @@ const Index = () => {
   ];
 
   const cameraLevels: { level: CameraLevel; title: string }[] = [
-    { level: 'entry', title: 'Basic' },
-    { level: 'mid', title: 'Standard' },
-    { level: 'high', title: 'Premium' }
+    { level: 'entry', title: 'Entry Level' },
+    { level: 'mid', title: 'Mid-Range' },
+    { level: 'high', title: 'High End' }
   ];
 
   return (
@@ -546,7 +563,7 @@ const Index = () => {
                 const getDescription = () => {
                   switch (cameraLevel.level) {
                     case 'entry':
-                      return 'Basic features, reliable performance';
+                      return 'Entry level features, reliable performance';
                     case 'mid':
                       return 'Enhanced features, better quality';
                     case 'high':
@@ -723,6 +740,14 @@ const Index = () => {
                   }
                   #root {
                     height: 100%;
+                  }
+                  /* Ensure Radix Select dropdowns can scroll even inside iframes/cards */
+                  .select-content[data-state="open"] [data-radix-select-viewport] {
+                    max-height: 18rem; /* 288px */
+                    overflow-y: auto;
+                  }
+                  .select-content[data-state="open"] {
+                    z-index: 9999 !important;
                   }
                 `
               }} />

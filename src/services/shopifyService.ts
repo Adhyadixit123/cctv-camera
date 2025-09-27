@@ -24,7 +24,7 @@ export class ShopifyProductService {
                 }
               }
             }
-            variants(first: 10) {
+            variants(first: 100) {
               edges {
                 node {
                   id
@@ -33,7 +33,13 @@ export class ShopifyProductService {
                     amount
                     currencyCode
                   }
+                  compareAtPrice {
+                    amount
+                    currencyCode
+                  }
                   availableForSale
+                  quantityAvailable
+                  selectedOptions { name value }
                 }
               }
             }
@@ -77,10 +83,47 @@ export class ShopifyProductService {
                   handle
                   publishedAt
                   availableForSale
-                  images(first: 1) { edges { node { url altText } } }
-                  variants(first: 10) { edges { node { id title price { amount currencyCode } compareAtPrice { amount currencyCode } availableForSale quantityAvailable } } }
-                  priceRange { minVariantPrice { amount currencyCode } }
+                  images(first: 1) { 
+                    edges { 
+                      node { 
+                        url 
+                        altText 
+                      } 
+                    } 
+                  }
+                  variants(first: 100) { 
+                    edges { 
+                      node { 
+                        id 
+                        title 
+                        price { 
+                          amount 
+                          currencyCode 
+                        } 
+                        compareAtPrice { 
+                          amount 
+                          currencyCode 
+                        } 
+                        availableForSale 
+                        quantityAvailable 
+                        selectedOptions { 
+                          name 
+                          value 
+                        }
+                      } 
+                    } 
+                  }
+                  priceRange { 
+                    minVariantPrice { 
+                      amount 
+                      currencyCode 
+                    } 
+                  }
                 }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
               }
             }
           }
@@ -102,17 +145,54 @@ export class ShopifyProductService {
                   handle
                   publishedAt
                   availableForSale
-                  images(first: 1) { edges { node { url altText } } }
-                  variants(first: 10) { edges { node { id title price { amount currencyCode } compareAtPrice { amount currencyCode } availableForSale quantityAvailable } } }
-                  priceRange { minVariantPrice { amount currencyCode } }
+                  images(first: 1) { 
+                    edges { 
+                      node { 
+                        url 
+                        altText 
+                      } 
+                    } 
+                  }
+                  variants(first: 100) { 
+                    edges { 
+                      node { 
+                        id 
+                        title 
+                        price { 
+                          amount 
+                          currencyCode 
+                        } 
+                        compareAtPrice { 
+                          amount 
+                          currencyCode 
+                        } 
+                        availableForSale 
+                        quantityAvailable 
+                        selectedOptions { 
+                          name 
+                          value 
+                        }
+                      } 
+                    } 
+                  }
+                  priceRange { 
+                    minVariantPrice { 
+                      amount 
+                      currencyCode 
+                    } 
+                  }
                 }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
               }
             }
           }
         }
       `;
 
-      const variables: any = { first: 20 };
+      const variables: any = { first: 250 }; // Increased from 20 to 250 (Shopify's max)
       let response: any;
 
       if (!handleOrId) {
@@ -120,7 +200,52 @@ export class ShopifyProductService {
         const allProductsQuery = `
           query GetAllProducts($first: Int!) {
             products(first: $first) {
-              edges { node { id title description handle publishedAt availableForSale images(first:1){edges{node{url altText}}} variants(first:10){edges{node{id title price{amount currencyCode} compareAtPrice{amount currencyCode} availableForSale quantityAvailable}}} priceRange{minVariantPrice{amount currencyCode}} } }
+              edges { 
+                node { 
+                  id 
+                  title 
+                  description 
+                  handle 
+                  publishedAt 
+                  availableForSale 
+                  images(first: 1) { 
+                    edges { 
+                      node { 
+                        url 
+                        altText 
+                      } 
+                    } 
+                  } 
+                  variants(first: 100) { 
+                    edges { 
+                      node { 
+                        id 
+                        title 
+                        price { 
+                          amount 
+                          currencyCode 
+                        } 
+                        compareAtPrice { 
+                          amount 
+                          currencyCode 
+                        } 
+                        availableForSale 
+                        quantityAvailable 
+                        selectedOptions { 
+                          name 
+                          value 
+                        }
+                      } 
+                    } 
+                  } 
+                  priceRange { 
+                    minVariantPrice { 
+                      amount 
+                      currencyCode 
+                    } 
+                  } 
+                } 
+              }
             }
           }
         `;
@@ -164,6 +289,17 @@ export class ShopifyProductService {
       if (productEdges.length === 0) {
         console.log('[ShopifyProductService] No products found in response');
       }
+
+      // Debug: log how many variants Shopify returned for each product
+      try {
+        productEdges.forEach((edge: any, idx: number) => {
+          const node = edge?.node || {};
+          const vEdges = node?.variants?.edges || [];
+          const vTitles = vEdges.map((e: any) => e?.node?.title).filter(Boolean).slice(0, 20);
+          // eslint-disable-next-line no-console
+          console.log(`[ShopifyProductService] Product ${idx + 1}:`, node?.title, '| variants:', vEdges.length, vTitles);
+        });
+      } catch {}
 
       const transformedProducts = productEdges.map((edge: any) => this.transformShopifyProduct(edge.node));
       console.log(`[ShopifyProductService] Returning ${transformedProducts.length} transformed products`);
@@ -221,21 +357,47 @@ export class ShopifyProductService {
 
     // Map variants with absolute pricing (and compare-at if present)
     const variantEdges = shopifyProduct.variants?.edges || [];
-    const variants = variantEdges.length > 0
-      ? variantEdges.map((edge: any) => ({
-          id: edge.node.id,
-          name: 'Variant',
-          value: edge.node.title,
-          priceAmount: parseFloat(edge.node.price?.amount ?? basePrice),
-          compareAtPriceAmount: edge.node.compareAtPrice?.amount ? parseFloat(edge.node.compareAtPrice.amount) : undefined
-        }))
-      : [{
-          id: shopifyProduct.id,
-          name: 'Default',
-          value: 'Default',
-          priceAmount: basePrice,
-          compareAtPriceAmount: undefined
-        }];
+    try {
+      const debugVariantTitles = variantEdges.map((e: any) => e?.node?.title).filter(Boolean);
+      // eslint-disable-next-line no-console
+      console.log('[transformShopifyProduct] Product:', shopifyProduct.title, 'variants:', variantEdges.length, debugVariantTitles);
+    } catch {}
+    
+    // Group variants by their options to handle variant combinations
+    const variants = [];
+    const variantMap = new Map();
+    
+    variantEdges.forEach((edge: any) => {
+      const variant = edge.node;
+      const variantName = variant.selectedOptions
+        .map((opt: any) => opt.value)
+        .join(' / ');
+      
+      variants.push({
+        id: variant.id,
+        name: 'Variant',
+        value: variantName || variant.title,
+        priceAmount: parseFloat(variant.price?.amount ?? basePrice),
+        compareAtPriceAmount: variant.compareAtPrice?.amount 
+          ? parseFloat(variant.compareAtPrice.amount) 
+          : undefined,
+        available: variant.availableForSale,
+        quantityAvailable: variant.quantityAvailable
+      });
+    });
+    
+    // If no variants were added, add a default one
+    if (variants.length === 0) {
+      variants.push({
+        id: shopifyProduct.id,
+        name: 'Default',
+        value: 'Default',
+        priceAmount: basePrice,
+        compareAtPriceAmount: undefined,
+        available: true,
+        quantityAvailable: 1
+      });
+    }
 
     return {
       id: shopifyProduct.id,
@@ -320,52 +482,64 @@ export class ShopifyProductService {
     try {
       console.log('[ShopifyProductService] Testing specific product:', productId);
       const query = `
-        query GetProduct($id: ID!) {
-          product(id: $id) {
-            id
-            title
-            handle
-            description
-            publishedAt
-            availableForSale
-            collections(first: 10) {
-              edges {
-                node {
-                  id
-                  title
-                  handle
-                }
+      query GetProduct($id: ID!) {
+        product(id: $id) {
+          id
+          title
+          handle
+          description
+          publishedAt
+          availableForSale
+          collections(first: 10) {
+            edges {
+              node {
+                id
+                title
+                handle
               }
             }
-            images(first: 1) {
-              edges {
-                node {
-                  url
-                  altText
-                }
+          }
+          images(first: 1) {
+            edges {
+              node {
+                url
+                altText
               }
             }
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  title
-                  price {
-                    amount
-                    currencyCode
-                  }
-                  availableForSale
-                  quantityAvailable
+          }
+          variants(first: 100) {
+            edges {
+              node {
+                id
+                title
+                price {
+                  amount
+                  currencyCode
+                }
+                availableForSale
+                quantityAvailable
+                selectedOptions {
+                  name
+                  value
                 }
               }
             }
           }
         }
-      `;
+      }
+    `;
 
       const response = await shopifyClient.request(query, {
         variables: { id: `gid://shopify/Product/${productId}` }
       });
+
+      try {
+        const vEdges = response?.data?.product?.variants?.edges || [];
+        const vCount = vEdges.length;
+        const vTitles = vEdges.map((e: any) => e?.node?.title).filter(Boolean);
+        // eslint-disable-next-line no-console
+        console.log('[ShopifyProductService] testSpecificProduct variants:', vCount, vTitles);
+      } catch {}
 
       console.log('[ShopifyProductService] Specific product response:', response);
       return response.data?.product || null;
