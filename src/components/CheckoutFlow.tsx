@@ -929,7 +929,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
                           <p className="text-gray-600">Loading products from collection...</p>
                         </div>
                       ) : stepProducts.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                           {stepProducts.map((product) => (
                             <ProductCard
                               key={product.id}
@@ -957,7 +957,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
                           <p className="text-gray-600">Loading add-on products...</p>
                         </div>
                       ) : stepProducts.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                           {stepProducts.map((product) => (
                             <ProductCard
                               key={product.id}

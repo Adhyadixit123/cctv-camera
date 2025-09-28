@@ -442,9 +442,9 @@ const Index = () => {
   ];
 
   const cameraLevels: { level: CameraLevel; title: string }[] = [
-    { level: 'entry', title: 'Entry Level' },
-    { level: 'mid', title: 'Mid-Range' },
-    { level: 'high', title: 'High End' }
+    { level: 'entry', title: 'Entry Level- Full HD System' },
+    { level: 'mid', title: 'Mid-Range-6MP Ultra HD System' },
+    { level: 'high', title: 'High End-4k system' }
   ];
 
   return (
@@ -494,8 +494,10 @@ const Index = () => {
                     <h3 className="text-lg font-medium text-gray-900">{cameraType.title}</h3>
                     <p className="mt-1 text-sm text-gray-500">
                       {cameraType.type === 'residential' 
-                        ? 'For homes and personal use' 
-                        : 'For businesses and commercial spaces'}
+                        ? 'Houses, flats, apartments' 
+                        : cameraType.type === 'industrial'
+                        ? 'Factories, plants, large-scale facilities, industrial complexes'
+                        : 'Shops, offices, warehouses, retail units'}
                     </p>
                   </div>
                   <div className="absolute inset-0 -z-10 bg-gradient-to-br from-blue-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
@@ -523,7 +525,7 @@ const Index = () => {
             </div>
 
             <h2 className="text-3xl font-bold text-gray-900 mb-1 text-center">CCTV Range</h2>
-            <p className="text-sm text-gray-600 mb-6 text-center">View the difference here: Our IP CCTV range explained</p>
+            <p className="text-sm text-gray-600 mb-6 text-center"></p>
             
             <div className="space-y-4 max-w-md mx-auto">
               {cameraLevels.map((cameraLevel, index) => {
@@ -563,11 +565,11 @@ const Index = () => {
                 const getDescription = () => {
                   switch (cameraLevel.level) {
                     case 'entry':
-                      return 'Entry level features, reliable performance';
+                      return 'Clear day & night vision, Ideal for smaller homes or budget-friendly setups';
                     case 'mid':
-                      return 'Enhanced features, better quality';
+                      return 'Sharper details & wider coverage than Full HD  , Great for medium sized homes , shops or offices';
                     case 'high':
-                      return 'Premium features, top performance';
+                      return 'Crystal clear details , even when zooming in  , Best for large properties  high security needs  or professional minitoring ';
                     default:
                       return 'Professional-grade security solution';
                   }
@@ -596,6 +598,48 @@ const Index = () => {
                   </button>
                 );
               })}
+              
+              <div className="mt-8 p-6 bg-gray-50 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">All systems include:</h3>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li className="flex items-start">
+                    <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Full colour cameras (day & night)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>5 years parts warranty</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Built-in Microphone</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Lifetime telephone advice</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>1 year labour warranty</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Professional installation</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         )}
@@ -683,7 +727,7 @@ const Index = () => {
                   <p className="text-gray-600">Loading add-on products...</p>
                 </div>
               ) : products.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 justify-items-center">
                   {products
                     .filter(product => {
                       const quantityInCart = getCartQuantity(product.id);
@@ -694,7 +738,7 @@ const Index = () => {
                     .map((product) => {
                       const quantityInCart = getCartQuantity(product.id);
                       return (
-                        <div key={product.id} className="relative">
+                        <div key={product.id} className="relative w-full max-w-xl">
                           {quantityInCart > 0 && (
                             <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center z-10">
                               {quantityInCart}
@@ -703,7 +747,7 @@ const Index = () => {
                           <ProductCard 
                             product={product} 
                             onAddToCart={handleAddToCart} 
-                            size="sm" 
+                            size="lg" 
                             cartQuantity={quantityInCart}
                           />
                         </div>

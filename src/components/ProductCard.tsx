@@ -113,8 +113,7 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
   const displayPrice = selectedVariantData?.priceAmount ?? product.basePrice;
   const compareAt = selectedVariantData?.compareAtPriceAmount;
 
-  // Size-based styles
-  const imageHeight = size === 'sm' ? 'h-40' : size === 'md' ? 'h-64' : 'h-80';
+  // Size-based styles (image area now uses aspect-square; keep padding/typography responsive)
   const cardPadding = size === 'sm' ? 'p-4' : size === 'md' ? 'p-5' : 'p-6';
   const titleSize = size === 'sm' ? 'text-lg' : size === 'md' ? 'text-xl' : 'text-2xl';
   const priceSize = size === 'sm' ? 'text-2xl' : size === 'md' ? 'text-3xl' : 'text-3xl';
@@ -145,12 +144,12 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
   // If no variants are available, show the product as unavailable
   if (product.variants.length === 0) {
     return (
-      <Card className="overflow-hidden shadow-lg border-0 bg-card">
-        <div className="relative">
+      <Card className="overflow-hidden shadow-lg border-0 bg-card h-full flex flex-col">
+        <div className="relative aspect-square w-full">
           <img
             src={product.image}
             alt={product.name}
-            className="w-full h-80 object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
           />
           <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
             Best Seller
@@ -177,7 +176,7 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 flex-1 flex flex-col">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-3xl font-bold text-foreground">${displayPrice}</span>
@@ -200,12 +199,12 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
   }
 
   return (
-    <Card className="overflow-hidden shadow-lg border-0 bg-card">
-      <div className="relative">
+    <Card className="overflow-hidden shadow-lg border-0 bg-card h-full flex flex-col">
+      <div className="relative aspect-square w-full">
         <img
           src={product.image}
           alt={product.name}
-          className={`w-full ${imageHeight} object-cover`}
+          className="absolute inset-0 w-full h-full object-cover"
         />
         {size !== 'sm' && (
           <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
@@ -214,7 +213,7 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
         )}
       </div>
 
-      <CardContent className={`${cardPadding} space-y-4`}>
+      <CardContent className={`${cardPadding} space-y-4 flex-1 flex flex-col`}>
         {size !== 'sm' && (
           <div className="flex items-center gap-2">
             {[...Array(5)].map((_, i) => (
