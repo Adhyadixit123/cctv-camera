@@ -527,9 +527,9 @@ const Index = () => {
             <h2 className="text-3xl font-bold text-gray-900 mb-1 text-center">CCTV Range</h2>
             <p className="text-sm text-gray-600 mb-6 text-center"></p>
             
-            <div className="mb-8 p-6 bg-gray-50 rounded-lg">
+            <div className="mb-8 p-6 bg-gray-50 rounded-lg text-center">
               <h3 className="text-lg font-medium text-gray-900 mb-3">All systems include:</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
+              <ul className="space-y-2 text-sm text-gray-700 inline-block text-left">
                 <li className="flex items-start">
                   <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
