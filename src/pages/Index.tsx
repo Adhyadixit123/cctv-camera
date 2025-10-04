@@ -437,7 +437,7 @@ const Index = () => {
 
   const cameraTypes: { type: CameraType; title: string }[] = [
     { type: 'residential', title: 'Residential' },
-    { type: 'rural', title: 'Comercial' },
+    { type: 'rural', title: 'Commercial' },
     { type: 'industrial', title: 'Industrial' }
   ];
 
