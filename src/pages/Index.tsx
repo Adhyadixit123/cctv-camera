@@ -717,9 +717,9 @@ const Index = () => {
 
               <div className="text-center mb-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-1">
-                  Add-ons & Accessories from Shopify
+                  Add-ons & Accessories
                 </h2>
-                <p className="text-xs text-gray-500">Products are fetched from your add-ons collection</p>
+                <p className="text-xs text-gray-500">Browse and select additional accessories</p>
               </div>
 
               {loadingProducts ? (
