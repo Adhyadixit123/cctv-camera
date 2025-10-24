@@ -464,7 +464,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
       description: product.description,
       basePrice: product.id === '2x-camera' ? 299 : 449,
       image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400',
-      variants: [{ id: variantId, name: 'Standard', value: 'standard', priceModifier: 0 }]
+      variants: [{ id: variantId, name: 'Standard', value: 'standard', priceAmount: product.id === '2x-camera' ? 299 : 449, priceModifier: 0 }]
     };
 
     // Use the cart hook's updateProductSelection method to properly manage cart state
@@ -704,7 +704,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold">${item.price.toFixed(2)}</span>
+                            <span className="font-bold">£{item.price.toFixed(2)}</span>
                             <Button
                               variant="outline"
                               size="sm"
@@ -1042,7 +1042,7 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
                               )}
                             </div>
                             <div className="flex items-center gap-1">
-                              <span className="font-medium text-sm">${item.price.toFixed(2)}</span>
+                              <span className="font-medium text-sm">£{item.price.toFixed(2)}</span>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1085,16 +1085,16 @@ export function CheckoutFlow({ steps, onComplete, onBack }: CheckoutFlowProps) {
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span>Subtotal</span>
-                          <span>${orderSummary.subtotal.toFixed(2)}</span>
+                          <span>£{orderSummary.subtotal.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Tax</span>
-                          <span>${orderSummary.tax.toFixed(2)}</span>
+                          <span>£{orderSummary.tax.toFixed(2)}</span>
                         </div>
                         <Separator />
                         <div className="flex justify-between font-bold text-lg">
                           <span>Total</span>
-                          <span>${orderSummary.total.toFixed(2)}</span>
+                          <span>£{orderSummary.total.toFixed(2)}</span>
                         </div>
                       </div>
 
@@ -1152,7 +1152,7 @@ function AddOnCard({ addOn, isSelected, onToggle }: AddOnCardProps) {
             <p className="text-sm text-muted-foreground">{addOn.description}</p>
             <div className="flex items-center justify-between">
               <span className="font-bold text-lg text-foreground">
-                ${addOn.price}
+                £{addOn.price}
               </span>
               <div className="flex items-center gap-2">
                 {isSelected ? (

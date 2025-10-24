@@ -179,9 +179,9 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
           <div className="space-y-3 flex-1 flex flex-col">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-3xl font-bold text-foreground">${displayPrice}</span>
+                <span className="text-3xl font-bold text-foreground">£{displayPrice}</span>
                 {compareAt && compareAt > displayPrice && (
-                  <span className="text-sm text-muted-foreground ml-2 line-through">${compareAt}</span>
+                  <span className="text-sm text-muted-foreground ml-2 line-through">£{compareAt}</span>
                 )}
               </div>
             </div>
@@ -252,7 +252,7 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
                       <div className="flex justify-between items-center w-full">
                         <span>{availableProduct.name}</span>
                         <span className="text-sm text-muted-foreground ml-2">
-                          ${availableProduct.basePrice}
+                          £{availableProduct.basePrice}
                         </span>
                       </div>
                     </SelectItem>
@@ -288,9 +288,9 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
 
           <div className="flex items-center justify-between">
             <div>
-              <span className={`${priceSize} font-bold text-foreground`}>${displayPrice}</span>
+              <span className={`${priceSize} font-bold text-foreground`}>£{displayPrice}</span>
               {compareAt && compareAt > displayPrice ? (
-                <span className="text-sm text-muted-foreground ml-2 line-through">${compareAt}</span>
+                <span className="text-sm text-muted-foreground ml-2 line-through">£{compareAt}</span>
               ) : null}
             </div>
           </div>
