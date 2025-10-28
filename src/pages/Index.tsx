@@ -738,6 +738,7 @@ const Index = () => {
                             onAddToCart={handleAddToCart} 
                             size="lg" 
                             cartQuantity={quantityInCart}
+                            showQuantityInPrice={true}
                           />
                         </div>
                       );
@@ -823,7 +824,7 @@ const Index = () => {
                               <p className="font-medium">{item.name}</p>
                               <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
                             </div>
-                            <div className="font-semibold">${item.price.toFixed(2)}</div>
+                            <div className="font-semibold">£{item.price.toFixed(2)}</div>
                           </div>
                         ))}
                       </div>
@@ -832,15 +833,15 @@ const Index = () => {
                         <h4 className="font-semibold mb-2">Totals</h4>
                         <div className="flex items-center justify-between">
                           <span>Subtotal</span>
-                          <span className="font-medium">${orderSummary.subtotal.toFixed(2)}</span>
+                          <span className="font-medium">£{orderSummary.subtotal.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Tax</span>
-                          <span className="font-medium">${orderSummary.tax.toFixed(2)}</span>
+                          <span className="font-medium">£{orderSummary.tax.toFixed(2)}</span>
                         </div>
                         <div className="border-t mt-3 pt-3 flex items-center justify-between text-lg font-bold">
                           <span>Total</span>
-                          <span className="text-blue-600">${orderSummary.total.toFixed(2)}</span>
+                          <span className="text-blue-600">£{orderSummary.total.toFixed(2)}</span>
                         </div>
                       </div>
                     </>
@@ -862,16 +863,16 @@ const Index = () => {
                         <>
                           <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
                             <span>Subtotal</span>
-                            <span className="font-semibold">${orderSummary.subtotal.toFixed(2)}</span>
+                            <span className="font-semibold">£{orderSummary.subtotal.toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
                             <span>Tax</span>
-                            <span className="font-semibold">${orderSummary.tax.toFixed(2)}</span>
+                            <span className="font-semibold">£{orderSummary.tax.toFixed(2)}</span>
                           </div>
                           <div className="border-t pt-4">
                             <div className="flex items-center justify-between text-lg font-bold">
                               <span>Total</span>
-                              <span className="text-blue-600">${orderSummary.total.toFixed(2)}</span>
+                              <span className="text-blue-600">£{orderSummary.total.toFixed(2)}</span>
                             </div>
                           </div>
                         </>

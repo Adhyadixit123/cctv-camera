@@ -54,7 +54,7 @@ export function OrderComplete({ onNewOrder }: OrderCompleteProps) {
                           </p>
                         )}
                       </div>
-                      <span className="font-medium">${item.price}</span>
+                      <span className="font-medium">£{item.price}</span>
                     </div>
                   ))}
 
@@ -63,16 +63,16 @@ export function OrderComplete({ onNewOrder }: OrderCompleteProps) {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Subtotal</span>
-                      <span>${orderSummary.subtotal.toFixed(2)}</span>
+                      <span>£{orderSummary.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Tax</span>
-                      <span>${orderSummary.tax.toFixed(2)}</span>
+                      <span>£{orderSummary.tax.toFixed(2)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-bold text-lg">
                       <span>Total</span>
-                      <span>${orderSummary.total.toFixed(2)}</span>
+                      <span>£{orderSummary.total.toFixed(2)}</span>
                     </div>
                   </div>
                 </>

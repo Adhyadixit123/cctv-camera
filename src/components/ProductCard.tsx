@@ -13,9 +13,10 @@ interface ProductCardProps {
   availableProducts?: Product[];
   size?: 'sm' | 'md' | 'lg';
   cartQuantity?: number; // Number of this product in the cart
+  showQuantityInPrice?: boolean;
 }
 
-export function ProductCard({ product, onAddToCart, onProductChange, availableProducts = [], size = 'md', cartQuantity = 0 }: ProductCardProps) {
+export function ProductCard({ product, onAddToCart, onProductChange, availableProducts = [], size = 'md', cartQuantity = 0, showQuantityInPrice = false }: ProductCardProps) {
   // If there's only one variant, use it directly
   const defaultVariantId = product.variants.length > 0 ? product.variants[0].id : '';
   const [selectedVariant, setSelectedVariant] = useState(defaultVariantId);
@@ -289,6 +290,9 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
           <div className="flex items-center justify-between">
             <div>
               <span className={`${priceSize} font-bold text-foreground`}>£{displayPrice}</span>
+              {showQuantityInPrice && cartQuantity > 0 && (
+                <span className="text-sm text-blue-600 ml-2">({cartQuantity} in cart)</span>
+              )}
               {compareAt && compareAt > displayPrice ? (
                 <span className="text-sm text-muted-foreground ml-2 line-through">£{compareAt}</span>
               ) : null}
