@@ -181,6 +181,9 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-3xl font-bold text-foreground">£{displayPrice}</span>
+                {showQuantityInPrice && cartQuantity > 0 && (
+                  <span className="text-sm text-blue-600 ml-2">({cartQuantity} in cart)</span>
+                )}
                 {compareAt && compareAt > displayPrice && (
                   <span className="text-sm text-muted-foreground ml-2 line-through">£{compareAt}</span>
                 )}
@@ -290,14 +293,17 @@ export function ProductCard({ product, onAddToCart, onProductChange, availablePr
           <div className="flex items-center justify-between">
             <div>
               <span className={`${priceSize} font-bold text-foreground`}>£{displayPrice}</span>
-              {showQuantityInPrice && cartQuantity > 0 && (
-                <span className="text-sm text-blue-600 ml-2">({cartQuantity} in cart)</span>
-              )}
               {compareAt && compareAt > displayPrice ? (
                 <span className="text-sm text-muted-foreground ml-2 line-through">£{compareAt}</span>
               ) : null}
             </div>
           </div>
+
+          {showQuantityInPrice && (
+            <div className="text-sm text-blue-600 font-medium">
+              {cartQuantity > 0 ? `${cartQuantity} in cart` : 'Not in cart'}
+            </div>
+          )}
 
           {cartQuantity > 0 ? (
             <div className="flex items-center justify-between bg-blue-50 rounded-lg p-3 border border-blue-100">

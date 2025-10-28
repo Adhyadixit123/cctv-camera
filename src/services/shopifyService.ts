@@ -837,6 +837,7 @@ export class ShopifyProductService {
                       }
                       product {
                         title
+                        id
                         images(first: 1) {
                           edges {
                             node {
