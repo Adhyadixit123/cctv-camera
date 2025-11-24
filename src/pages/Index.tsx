@@ -167,9 +167,6 @@ const Index = () => {
     const syncSummary = async () => {
       if (appState !== 'order-summary') return;
       try {
-        if (shopifyCart?.id) {
-          await loadCart(shopifyCart.id);
-        }
         const summary = await getOrderSummary();
         setOrderSummary(summary);
         if (!checkoutUrl) {
