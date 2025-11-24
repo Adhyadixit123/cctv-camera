@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Product, AddOn } from '@/types/checkout';
 import { ShopifyProductService } from '@/services/shopifyService';
 
@@ -56,6 +56,14 @@ export function useCart() {
       setError('Error loading cart');
     }
   }, [saveCartData]);
+
+  // On initial mount, if we have a saved cartId but no in-memory cart data,
+  // fetch the latest cart from Shopify so we can restore the cart into state.
+  useEffect(() => {
+    if (cartId && !shopifyCart) {
+      loadCart(cartId);
+    }
+  }, [cartId, shopifyCart, loadCart]);
 
   const updateProductSelection = useCallback(async (product: Product, variantId: string) => {
     setSelectedProduct(product);

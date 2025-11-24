@@ -56,6 +56,12 @@ const Index = () => {
   };
 
   useEffect(() => {
+    if (appState === 'camera-type' && shopifyCart?.lines?.edges?.length) {
+      setAppState('order-summary');
+    }
+  }, [appState, shopifyCart]);
+
+  useEffect(() => {
     // Create the camera checkout flow steps
     const createCheckoutSteps = async () => {
       try {
